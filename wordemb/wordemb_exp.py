@@ -74,6 +74,7 @@ class GloveWrapper():
         self.name = name
         self.n_features = n_features
         self.n_epochs = n_epochs
+        self.n_threads = n_threads
         self.window_size = window_size
         self.is_load = False
 
@@ -184,9 +185,9 @@ def test_most_similar(modelwrapper):
             print "no such word", keyword
 
 
-def test_word_cluster(modelwrapper):
-    label_word_dict = modelwrapper.word_cluster()
-    with open("./word_cluster.txt", "w") as F:
+def test_word_cluster(modelwrapper, filepath="./word_cluster.txt", n_clusters=30):
+    label_word_dict = modelwrapper.word_cluster(n_clusters=n_clusters)
+    with open(filepath, "w") as F:
         for label, words in label_word_dict.iteritems():
             F.write("label:"+str(label)+"\n")
             F.write(",".join(words)+"\n")
