@@ -40,7 +40,7 @@ class Glove(object):
 
     def __init__(self, no_components=30, learning_rate=0.05,
                  alpha=0.75, max_count=100, max_loss=10.0,
-                 random_state=None):
+                 random_state=None, n_threads=4, n_epochs=30, verbose=True ):
         """
         Parameters:
         - int no_components: number of latent dimensions
@@ -72,7 +72,11 @@ class Glove(object):
 
         self.random_state = random_state
 
-    def fit(self, matrix, epochs=5, no_threads=2, verbose=False):
+        self.n_threads = n_threads
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+
+    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=False, shrink_symm=False):
         """
         Estimate the word embeddings.
 
@@ -84,6 +88,11 @@ class Glove(object):
         """
 
         shape = matrix.shape
+        print "matrix shape:", shape
+
+        verbose = self.verbose
+        epochs = self.n_epochs
+        no_threads = self.n_threads
 
         if (len(shape) != 2 or
             shape[0] != shape[1]):
@@ -104,6 +113,53 @@ class Glove(object):
 
         shuffle_indices = np.arange(matrix.nnz, dtype=np.int32)
 
+        # process matrix
+        if log_flag:
+            matrix = matrix.log1p()
+
+        if shrink_symm:
+            # row_dict = defaultdict(lambda :defaultdict(int))
+            row_dict = {}
+
+            mrow = matrix.row
+            mcol = matrix.col
+            mdata = matrix.data
+
+            new_row = []
+            new_col = []
+            new_data = []
+
+            for i,row_i in enumerate(mrow):
+                append_flag = False
+
+                col_i = mcol[i]
+                x = mdata[i]
+
+                if row_i < col_i:
+                    small_i = row_i
+                    big_i = col_i
+                elif row_i == col_i:
+                    continue
+                else:
+                    small_i = col_i
+                    big_i = row_i
+                
+                try:
+                    col_dict = row_dict[small_i]
+                    if big_i not in col_dict:
+                        col_dict[big_i] = x
+                        append_flag = True
+                except KeyError:
+                    row_dict[small_i] = {big_i:x}
+                    append_flag = True
+
+                if append_flag:
+                    new_row.append(row_i)
+                    new_col.append(col_i)
+                    new_data.append(x)
+
+            matrix = sp.coo_matrix((np.asarray(new_data), (np.asarray(new_row), np.asarray(new_col)) ), shape=matrix.shape)
+
         if verbose:
             print('Performing %s training epochs '
                   'with %s threads' % (epochs, no_threads))
@@ -111,10 +167,11 @@ class Glove(object):
         for epoch in range(epochs):
 
             if verbose:
-                print('Epoch %s' % epoch)
+                print('Epoch %s' % epoch), 'size of matrix:', matrix.nnz
 
             # Shuffle the coocurrence matrix
-            random_state.shuffle(shuffle_indices)
+            # random_state.shuffle(shuffle_indices)
+            shuffle_indices = random_state.permutation(matrix.nnz).astype("int32")
 
             fit_vectors(self.word_vectors,
                         self.vectors_sum_gradients,

@@ -39,6 +39,8 @@ def fit_vectors(double[:, ::1] wordvec,
     using the AdaGrad per-coordinate learning rate.
     """
 
+    # print "fit_vectors"
+
     # Get number of latent dimensions and
     # number of cooccurrences.
     cdef int dim = wordvec.shape[1]
@@ -51,9 +53,12 @@ def fit_vectors(double[:, ::1] wordvec,
 
     # Loss and gradient variables.
     cdef double prediction, entry_weight, loss
+    max_count = c_log(max_count)
+    # max_count = c_log(100)
 
     # Iteration variables
     cdef int i, j, shuffle_index
+    cdef int two_iter_counter = 2, two_iter_i = 0
 
     # We iterate over random indices to simulate
     # shuffling the cooccurrence matrix.
@@ -62,52 +67,67 @@ def fit_vectors(double[:, ::1] wordvec,
         for j in prange(no_cooccurrences, num_threads=no_threads,
                         schedule='static'):
             shuffle_index = shuffle_indices[j]
+            count = counts[shuffle_index]
             word_a = row[shuffle_index]
             word_b = col[shuffle_index]
-            count = counts[shuffle_index]
 
-            # Get prediction
-            prediction = 0.0
+            # do double time, and it seems like not only faster but lower error_sq
+            for two_iter_i in range(two_iter_counter):
 
-            for i in range(dim):
-                prediction = prediction + wordvec[word_a, i] * wordvec[word_b, i]
+                if two_iter_i == 0:
+                    word_a = row[shuffle_index]
+                    word_b = col[shuffle_index]
+                else:
+                    word_b = row[shuffle_index]
+                    word_a = col[shuffle_index]
 
-            prediction = prediction + wordbias[word_a] + wordbias[word_b]
+                # Get prediction
+                prediction = 0.0
 
-            # Compute loss and the example weight.
-            entry_weight = double_min(1.0, (count / max_count)) ** alpha
-            loss = entry_weight * (prediction - c_log(count))
+                for i in range(dim):
+                    prediction = prediction + wordvec[word_a, i] * wordvec[word_b, i]
 
-            # Clip the loss for numerical stability.
-            if loss < -max_loss:
-                loss = -max_loss
-            elif loss > max_loss:
-                loss = max_loss
+                prediction = prediction + wordbias[word_a] + wordbias[word_b]
 
-            # Update step: apply gradients and reproject
-            # onto the unit sphere.
-            for i in range(dim):
+                # Compute loss and the example weight.
+                # log version
+                # entry_weight = double_min(1.0, (count / max_count)) ** alpha
+                # loss = entry_weight * (prediction - c_log(count)) 
+                # no log version
+                entry_weight = double_min(1.0, (count / max_count)) 
+                # entry_weight = count / max_count
+                loss = entry_weight * (prediction - count) 
 
-                learning_rate = initial_learning_rate / sqrt(wordvec_sum_gradients[word_a, i])
-                gradient = loss * wordvec[word_b, i]
-                wordvec[word_a, i] = (wordvec[word_a, i] - learning_rate 
-                                      * gradient)
-                wordvec_sum_gradients[word_a, i] += gradient ** 2
+                # Clip the loss for numerical stability.
+                if loss < -max_loss:
+                    loss = -max_loss
+                elif loss > max_loss:
+                    loss = max_loss
 
-                learning_rate = initial_learning_rate / sqrt(wordvec_sum_gradients[word_b, i])
-                gradient = loss * wordvec[word_a, i]
-                wordvec[word_b, i] = (wordvec[word_b, i] - learning_rate
-                                      * gradient)
-                wordvec_sum_gradients[word_b, i] += gradient ** 2
+                # Update step: apply gradients and reproject
+                # onto the unit sphere.
+                for i in range(dim):
 
-            # Update word biases.
-            learning_rate = initial_learning_rate / sqrt(wordbias_sum_gradients[word_a])
-            wordbias[word_a] -= learning_rate * loss
-            wordbias_sum_gradients[word_a] += loss ** 2
+                    learning_rate = initial_learning_rate / sqrt(wordvec_sum_gradients[word_a, i])
+                    gradient = loss * wordvec[word_b, i]
+                    wordvec[word_a, i] = (wordvec[word_a, i] - learning_rate 
+                                          * gradient)
+                    wordvec_sum_gradients[word_a, i] += gradient ** 2
 
-            learning_rate = initial_learning_rate / sqrt(wordbias_sum_gradients[word_b])
-            wordbias[word_b] -= learning_rate * loss
-            wordbias_sum_gradients[word_b] += loss ** 2
+                    learning_rate = initial_learning_rate / sqrt(wordvec_sum_gradients[word_b, i])
+                    gradient = loss * wordvec[word_a, i]
+                    wordvec[word_b, i] = (wordvec[word_b, i] - learning_rate
+                                          * gradient)
+                    wordvec_sum_gradients[word_b, i] += gradient ** 2
+
+                # Update word biases.
+                learning_rate = initial_learning_rate / sqrt(wordbias_sum_gradients[word_a])
+                wordbias[word_a] -= learning_rate * loss
+                wordbias_sum_gradients[word_a] += loss ** 2
+
+                learning_rate = initial_learning_rate / sqrt(wordbias_sum_gradients[word_b])
+                wordbias[word_b] -= learning_rate * loss
+                wordbias_sum_gradients[word_b] += loss ** 2
 
 
 def transform_paragraph(double[:, ::1] wordvec,
@@ -177,3 +197,101 @@ def transform_paragraph(double[:, ::1] wordvec,
                 paragraphvec[i] = (paragraphvec[i] - learning_rate
                                    * gradient)
                 sum_gradients[i] += gradient ** 2
+
+
+
+
+# little function for benchmarking numpy and c-array
+
+
+def mandel_cython_carray(int n=400,int maxi=512):
+    
+    cdef double x0 = -2.0
+    cdef double x1 = 1.0
+    cdef double y0 = -1.0
+    cdef double y1 = 1.0
+
+    # declare the type and dimension of numpy arrays
+    # (and create them in the same line, C-style)
+    cdef double[::1] xs = np.linspace(x0,x1,n)
+    cdef double[::1] ys = np.linspace(y0,y1,n)
+
+    cdef double[:, ::1] escape = np.ones((n,n),'float64') + 2
+    cdef np.ndarray[double,ndim=1] escape_np
+
+    # declare integer counters
+    cdef int i,j,it,esc, _
+
+    # declare complex variables
+    cdef double complex z,c
+
+    # use classic c-loop 
+    for _ in range(maxi):
+        for i in range(n):
+            for j in range(n):
+                escape[i,j] += xs[j]*ys[j]
+
+    if 0:
+        for i in range(n):
+            for j in range(n):
+                z = 0 + 0j
+                c = xs[i] + 1j * ys[j]
+
+                esc = maxi
+                for it in range(maxi):
+                    z = z*z + c
+
+                    # let's allow ourselves one hand-tuned optimization,
+                    # which avoids the sqrt implicit in abs
+                    if z.real*z.real + z.imag*z.imag > 4:
+                        esc = it
+                        break
+
+                escape[j,i] = esc
+
+    return np.asarray(escape)
+
+
+def mandel_cython_np(int n=400,int maxi=512):
+    
+    cdef double x0 = -2.0, x1 = 1.0, y0 = -1.0, y1 = 1.0
+
+    # declare the type and dimension of numpy arrays
+    # (and create them in the same line, C-style)
+    cdef np.ndarray[double,ndim=1] xs = np.linspace(x0,x1,n)
+    cdef np.ndarray[double,ndim=1] ys = np.linspace(y0,y1,n)
+    cdef np.ndarray[double,ndim=1] temps
+
+    cdef np.ndarray[double,ndim=2] escape = np.ones((n,n),'float64') + 2
+
+    # declare integer counters
+    cdef int i,j,it,esc
+
+    # declare complex variables
+    cdef double complex z,c
+
+    # use np vec-op
+    temps = (xs*ys)*maxi
+    escape += temps
+
+    if 0:
+        for i in range(n):
+            for j in range(n):
+                z = 0 + 0j
+                c = xs[i] + 1j * ys[j]
+
+                esc = maxi
+                for it in range(maxi):
+                    z = z*z + c
+
+                    # let's allow ourselves one hand-tuned optimization,
+                    # which avoids the sqrt implicit in abs
+                    if z.real*z.real + z.imag*z.imag > 4:
+                        esc = it
+                        break
+
+                escape[j,i] = esc
+
+    return escape
+
+
