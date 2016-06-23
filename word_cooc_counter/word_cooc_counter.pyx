@@ -6,7 +6,7 @@
 
 cdef class WordCoocCounter:
 
-    cdef public dict word2id_mapping 
+    cdef public dict word2id_mapping
     cdef public dict word_cooc_dok
     cdef public dict id2word_mapping
 

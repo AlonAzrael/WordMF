@@ -4,4 +4,9 @@
 
 Reduced/
 downloads/
+SmallkPkg/
+**/build/
+dir_random_coo_mtx/
+
+**/*.pyc
 
