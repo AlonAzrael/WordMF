@@ -76,7 +76,7 @@ class Glove(object):
         self.n_epochs = n_epochs
         self.verbose = verbose
 
-    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=False, shrink_symm=False):
+    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=False, shrink_symm=False, iter_counter=2, k_loss=1):
         """
         Estimate the word embeddings.
 
@@ -185,7 +185,9 @@ class Glove(object):
                         self.max_count,
                         self.alpha,
                         self.max_loss,
-                        int(no_threads))
+                        int(no_threads), 
+                        iter_counter,
+                        k_loss )
 
             if not np.isfinite(self.word_vectors).all():
                 raise Exception('Non-finite values in word vectors. '

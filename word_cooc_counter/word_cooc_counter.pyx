@@ -1,7 +1,9 @@
 
 
 
-
+import numpy as np
+cimport numpy as np
+import scipy.sparse as sp
 
 
 cdef class WordCoocCounter:
@@ -124,7 +126,7 @@ cdef class WordCoocCounter:
                     except KeyError:
                         word_cooc_dok[small_word_id] = {big_word_id:1}
 
-    def filter_words(self, int n_top=100000, int min_freq=-1, int min_cooc=5):
+    def filter_words(self, n_top=1.0, int min_freq=-1, int min_cooc=1):
         # cdef dict word2id_mapping = self.word2id_mapping
         cdef dict id2word_mapping = self.id2word_mapping
         cdef dict word_cooc_dok = self.word_cooc_dok
@@ -139,7 +141,18 @@ cdef class WordCoocCounter:
         cdef list filter_word_id_list = []
         cdef set filter_word_id_set = set()
         cdef list empty_word_id_list = []
+        cdef set empty_word_id_set = set()
+        cdef set preserved_word_id_set = set()
+        cdef list word_id_list = []
         cdef int n_cooc = 0
+
+        assert n_top != 0
+
+        if "." in str(n_top):
+            n_top = int(n_total_word * n_top)
+
+        if n_top < 0:
+            n_top = n_total_word + n_top
 
         if n_total_word > n_top:
             sorted_id2word_mapping = sorted(id2word_mapping.items(), key=lambda x:x[1][1])
@@ -156,22 +169,87 @@ cdef class WordCoocCounter:
                 except KeyError:
                     continue
 
-        # print filter_word_id_list
+        # print filter_word_id_listmin_cooc
+        print "inside id2word_mapping:", id2word_mapping
+        print "inside word_cooc_dok:", word_cooc_dok
 
         # remove filter_word and min_cooc in cooc_dok
         for word_id, word_dict in word_cooc_dok.iteritems():
 
-            for cword_id, n_cooc in word_dict.iteritems():
-                if n_cooc <= min_cooc or cword_id in filter_word_id_set:
+            # word_id_list = []
+            for cword_id, n_cooc in word_dict.items():
+                if cword_id in filter_word_id_set:
                     del word_dict[cword_id]
 
+                # if n_cooc <= min_cooc:
+
+                else:
+                    preserved_word_id_set.add(cword_id)
+
             if len(word_dict) == 0:
+                # empty_word_id_set.add(word_id)
                 empty_word_id_list.append(word_id)
+            else:
+                preserved_word_id_set.add(word_id)
 
         for word_id in empty_word_id_list:
+            # word_cooc_dok only have small word_id, so...
             del word_cooc_dok[word_id]
 
+        print "inside preserved_word_id_set:", preserved_word_id_set
+        
+        # reset word_id, 
+        cdef dict word2id_mapping = self.word2id_mapping
+        cdef dict new_id2word_mapping = {}
+        cdef dict old_id2new_id_mapping = {}
+        cdef dict new_word_cooc_dok = {}
+        cdef dict new_word2id_mapping = {}
+        cdef int new_word_id = 0
+        cdef dict new_word_dict = {}
+        cdef str word = ""
 
+        for new_word_id,word_id in enumerate(preserved_word_id_set):
+            new_id2word_mapping[new_word_id] = id2word_mapping[word_id]
+            old_id2new_id_mapping[word_id] = new_word_id
+
+        for word_id,word_dict in word_cooc_dok.iteritems():
+            new_word_dict = {}
+            for cword_id, n_cooc in word_dict.iteritems():
+                new_word_dict[old_id2new_id_mapping[cword_id]] = n_cooc
+            
+            new_word_cooc_dok[old_id2new_id_mapping[word_id]] = new_word_dict
+
+        for word, word_id in word2id_mapping.iteritems():
+            try:
+                new_word2id_mapping[word] = old_id2new_id_mapping[word_id]
+            except KeyError:
+                continue
+
+        self.id2word_mapping = new_id2word_mapping
+        self.word_cooc_dok = new_word_cooc_dok
+        self.word2id_mapping = new_word2id_mapping
+
+    def gen_word_coo_mtx(self):
+        cdef dict word_cooc_dok = self.word_cooc_dok
+        cdef list row_list = []
+        cdef list col_list = []
+        cdef list data_list = []
+        
+        cdef int word_id, n_cooc, cword_id
+        cdef dict word_dict
+
+        for word_id, word_dict in word_cooc_dok.iteritems():
+            for cword_id, n_cooc in word_dict.iteritems():
+                row_list.append(word_id)
+                col_list.append(cword_id)
+                data_list.append(n_cooc)
+
+        cdef np.ndarray[int, ndim=1] row_arr = np.asarray(row_list)
+        cdef np.ndarray[int, ndim=1] col_arr = np.asarray(col_list)
+        cdef np.ndarray[double, ndim=1] data_arr = np.asarray(data_list)
+
+        cdef int n_words = len(self.id2word_mapping)
+        sp.coo_matrix((data_arr, (row_arr, col_arr)), shape=(n_words, n_words))
 
 
 

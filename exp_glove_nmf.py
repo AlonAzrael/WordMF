@@ -168,9 +168,9 @@ def score_accuracy(coo_mtx, w, biases=None, log_flag=True):
         col_i = coo_mtx_log.col[i]
         # error = np.dot(w[row_i],w[col_i]) + biases[row_i] + biases[col_i] - coo_mtx_log.data[i]
         error = np.dot(w[row_i],w[col_i]) - coo_mtx_log.data[i]
-        errors_sq += error**2
+        errors_sq += (error**2)**0.5
 
-    return errors_sq
+    return errors_sq/coo_mtx.nnz
 
 
 def score_accuracy_smallk(coo_mtx, w, h, log_flag=True):
@@ -183,9 +183,9 @@ def score_accuracy_smallk(coo_mtx, w, h, log_flag=True):
     for i,row_i in enumerate(coo_mtx_log.row):
         col_i = coo_mtx_log.col[i]
         error = np.dot(w[row_i],h[col_i]) - coo_mtx_log.data[i]
-        errors_sq += error**2
+        errors_sq += (error**2)**0.5
 
-    return errors_sq
+    return errors_sq/coo_mtx.nnz
 
 
 def benchmark_glovewrapper(coo_mtx):
@@ -193,8 +193,8 @@ def benchmark_glovewrapper(coo_mtx):
 
     # model = GloveWrapper(n_features=100, n_threads=4, n_epochs=30)
     # model.fit_matrix(coo_mtx)
-    model = Glove(no_components=N_FEATURES, n_threads=4, n_epochs=20, )
-    model.fit(coo_mtx, shrink_symm=True)
+    model = Glove(no_components=N_FEATURES, n_threads=4, n_epochs=10, )
+    model.fit(coo_mtx, shrink_symm=True, iter_counter=4, k_loss=1)
 
     end_time = time()
     print "elapsed time:", end_time - start_time
@@ -226,7 +226,7 @@ def benchmark_sklearn_nmf(coo_mtx):
 
 def benchmark_smallk_nmf(coo_mtx):
     cmd = "nmf --matrixfile ./dir_random_coo_mtx/coo_rand_log.mtx --k 100 --maxthreads 4 --algorithm MU --outfile_W ./dir_random_coo_mtx/w.csv --outfile_H ./dir_random_coo_mtx/h.csv --normalize 1 --maxiter 50"
-    cmd += " --infile_W ./dir_random_coo_mtx/wgl.csv --infile_H ./dir_random_coo_mtx/hgl.csv"
+    # cmd += " --infile_W ./dir_random_coo_mtx/wgl.csv --infile_H ./dir_random_coo_mtx/hgl.csv"
     os.system(cmd)
 
     w,h = load_smallk_wh("./dir_random_coo_mtx/w.csv", "./dir_random_coo_mtx/h.csv")
@@ -249,8 +249,8 @@ def benchmark_np_and_carray():
 if __name__ == '__main__':
     # gen_random_coo_mtx(size=10000, density=0.01, filebase="./dir_random_coo_mtx")
     coo_mtx = load_coo_mtx(filepath="./dir_random_coo_mtx/coo_rand_log.mtx", )
-    benchmark_glovewrapper(coo_mtx)
-    # benchmark_smallk_nmf(coo_mtx)
+    # benchmark_glovewrapper(coo_mtx)
+    benchmark_smallk_nmf(coo_mtx)
     # benchmark_sklearn_nmf(coo_mtx)
     
     # load_smallk_wh("./dir_random_coo_mtx/w.csv", "./dir_random_coo_mtx/h.csv")

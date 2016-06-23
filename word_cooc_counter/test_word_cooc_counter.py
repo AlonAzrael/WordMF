@@ -2,8 +2,7 @@
 
 import pyximport
 import numpy as np
-pyximport.install()
-# setup_args={"include_dirs":np.get_include()}
+pyximport.install(setup_args={"include_dirs":np.get_include()})
 
 from word_cooc_counter import WordCoocCounter
 
@@ -16,6 +15,7 @@ def test_word_cooc_counter():
         "再见，地球，",
         "再见，世界，",
         "欧洲，世界，地球，",
+        "你好，欧洲",
         "你好，欧洲",
     ]
     
@@ -33,12 +33,19 @@ def test_word_cooc_counter():
     wcc.fit_doc_words_batch(doc_words_list)
 
     # print wcc.word_cooc_dok
+    print "=== state ==="
     for k,v in wcc.id2word_mapping.iteritems():
-        print k, v
-
-    wcc.filter_words(n_top=2)
-
+        print k, v[0], v[1]
     print wcc.word_cooc_dok
+    print "=== end state ==="
+
+    wcc.filter_words(n_top=1.0, min_cooc=1)
+
+    print "=== state ==="
+    for k,v in wcc.id2word_mapping.iteritems():
+        print k, v[0], v[1]
+    print wcc.word_cooc_dok
+    print "=== state ==="
     # for k,v in wcc.id2word_mapping.iteritems():
     #     print k, v[0]
 

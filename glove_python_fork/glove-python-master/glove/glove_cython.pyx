@@ -30,7 +30,9 @@ def fit_vectors(double[:, ::1] wordvec,
                 double max_count,
                 double alpha,
                 double max_loss,
-                int no_threads):
+                int no_threads, 
+                int iter_counter=2, 
+                int k_loss=1):
     """
     Estimate GloVe word embeddings given the cooccurrence matrix.
     Modifies the word vector and word bias array in-place.
@@ -58,7 +60,7 @@ def fit_vectors(double[:, ::1] wordvec,
 
     # Iteration variables
     cdef int i, j, shuffle_index
-    cdef int two_iter_counter = 2, two_iter_i = 0
+    cdef int two_iter_i = 0
 
     # We iterate over random indices to simulate
     # shuffling the cooccurrence matrix.
@@ -72,9 +74,9 @@ def fit_vectors(double[:, ::1] wordvec,
             word_b = col[shuffle_index]
 
             # do double time, and it seems like not only faster but lower error_sq
-            for two_iter_i in range(two_iter_counter):
+            for two_iter_i in range(iter_counter):
 
-                if two_iter_i == 0:
+                if two_iter_i % 2 == 0:
                     word_a = row[shuffle_index]
                     word_b = col[shuffle_index]
                 else:
@@ -96,7 +98,7 @@ def fit_vectors(double[:, ::1] wordvec,
                 # no log version
                 entry_weight = double_min(1.0, (count / max_count)) 
                 # entry_weight = count / max_count
-                loss = entry_weight * (prediction - count) 
+                loss = entry_weight * (prediction - count) * k_loss
 
                 # Clip the loss for numerical stability.
                 if loss < -max_loss:
