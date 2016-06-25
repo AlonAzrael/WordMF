@@ -96,8 +96,9 @@ def fit_vectors(double[:, ::1] wordvec,
                 # entry_weight = double_min(1.0, (count / max_count)) ** alpha
                 # loss = entry_weight * (prediction - c_log(count)) 
                 # no log version
-                entry_weight = double_min(1.0, (count / max_count)) 
+                # entry_weight = double_min(1.0, (count / max_count)) 
                 # entry_weight = count / max_count
+                entry_weight = 1 # the matrix should be filtered, so all words are important
                 loss = entry_weight * (prediction - count) * k_loss
 
                 # Clip the loss for numerical stability.
