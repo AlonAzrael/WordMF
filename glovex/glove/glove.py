@@ -38,9 +38,17 @@ class Glove(object):
     corpus coocurrence matrix.
     """
 
-    def __init__(self, no_components=30, learning_rate=0.05,
-                 alpha=0.75, max_count=100, max_loss=10.0,
-                 random_state=None, n_threads=4, n_epochs=30, verbose=True ):
+    def __init__(self, 
+        no_components=30, 
+        learning_rate=0.05,
+        alpha=0.75, 
+        max_count=100, 
+        max_loss=10.0,
+        random_state=None, 
+        n_threads=4, 
+        n_epochs=30, 
+        verbose=True 
+    ):
         """
         Parameters:
         - int no_components: number of latent dimensions
@@ -76,7 +84,7 @@ class Glove(object):
         self.n_epochs = n_epochs
         self.verbose = verbose
 
-    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=False, shrink_symm=False, iter_counter=2, k_loss=1):
+    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=False, shrink_symm=False, iter_counter=2, k_loss=1, gpu_mode=False):
         """
         Estimate the word embeddings.
 
@@ -111,7 +119,7 @@ class Glove(object):
         self.vectors_sum_gradients = np.ones_like(self.word_vectors)
         self.biases_sum_gradients = np.ones_like(self.word_biases)
 
-        shuffle_indices = np.arange(matrix.nnz, dtype=np.int32)
+        # shuffle_indices = np.arange(matrix.nnz, dtype=np.int32)
 
         # process matrix
         if log_flag:
@@ -160,39 +168,70 @@ class Glove(object):
 
             matrix = sp.coo_matrix((np.asarray(new_data), (np.asarray(new_row), np.asarray(new_col)) ), shape=matrix.shape)
 
-        if verbose:
-            print('Performing %s training epochs '
-                  'with %s threads' % (epochs, no_threads))
-
-        for epoch in range(epochs):
-
+        if gpu_mode:
             if verbose:
-                print('Epoch %s' % epoch), 'size of matrix:', matrix.nnz
+                print('Performing %s training epochs '
+                      'with GPU' % (epochs))
 
-            # Shuffle the coocurrence matrix
-            # random_state.shuffle(shuffle_indices)
+            from .glove_gpu.glove_cuda import fit_vectors as fit_vectors_gpu
+
             shuffle_indices = random_state.permutation(matrix.nnz).astype("int32")
+            word_vectors, word_biases = fit_vectors_gpu(
+                self.word_vectors,
+                self.vectors_sum_gradients,
+                self.word_biases,
+                self.biases_sum_gradients,
+                matrix.row,
+                matrix.col,
+                matrix.data,
+                shuffle_indices,
+                self.learning_rate,
+                self.max_count,
+                self.alpha,
+                self.max_loss,
+                int(no_threads), 
+                iter_counter,
+                k_loss, 
+                epochs, # must add this 
+            )
 
-            fit_vectors(self.word_vectors,
-                        self.vectors_sum_gradients,
-                        self.word_biases,
-                        self.biases_sum_gradients,
-                        matrix.row,
-                        matrix.col,
-                        matrix.data,
-                        shuffle_indices,
-                        self.learning_rate,
-                        self.max_count,
-                        self.alpha,
-                        self.max_loss,
-                        int(no_threads), 
-                        iter_counter,
-                        k_loss )
+            self.word_vectors = word_vectors
+            self.word_biases = word_biases
 
-            if not np.isfinite(self.word_vectors).all():
-                raise Exception('Non-finite values in word vectors. '
-                                'Try reducing the learning rate or the '
-                                'max_loss parameter.')
+        else:
+            if verbose:
+                print('Performing %s training epochs '
+                      'with %s threads' % (epochs, no_threads))
+
+            for epoch in range(epochs):
+
+                if verbose:
+                    print('Epoch %s' % epoch), 'size of matrix:', matrix.nnz
+
+                # Shuffle the coocurrence matrix
+                # random_state.shuffle(shuffle_indices)
+                shuffle_indices = random_state.permutation(matrix.nnz).astype("int32")
+
+                fit_vectors(self.word_vectors,
+                            self.vectors_sum_gradients,
+                            self.word_biases,
+                            self.biases_sum_gradients,
+                            matrix.row,
+                            matrix.col,
+                            matrix.data,
+                            shuffle_indices,
+                            self.learning_rate,
+                            self.max_count,
+                            self.alpha,
+                            self.max_loss,
+                            int(no_threads), 
+                            iter_counter,
+                            k_loss )
+
+                if not np.isfinite(self.word_vectors).all():
+                    raise Exception('Non-finite values in word vectors. '
+                                    'Try reducing the learning rate or the '
+                                    'max_loss parameter.')
 
     def transform_paragraph(self, paragraph, epochs=50, ignore_missing=False):
         """

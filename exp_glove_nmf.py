@@ -7,7 +7,6 @@ from scipy.sparse import random as random_mtx, coo_matrix
 
 from glove_exp import *
 from glove import *
-from glove_gpu import *
 from sklearn.decomposition import NMF
 from sklearn.datasets import make_blobs
 
@@ -210,6 +209,27 @@ def benchmark_glovewrapper(coo_mtx):
     # print "score_accuracy:", score_accuracy_smallk(coo_mtx, model.model.word_vectors, model.model.word_vectors, log_flag=False)
 
 
+def benchmark_glove_gpu(coo_mtx):
+    start_time = time()
+
+    # model = GloveWrapper(n_features=100, n_threads=4, n_epochs=30)
+    # model.fit_matrix(coo_mtx)
+    model = Glove(no_components=N_FEATURES, n_threads=4, n_epochs=20, )
+    model.fit(coo_mtx, shrink_symm=True, iter_counter=1, k_loss=2, gpu_mode=True)
+
+    end_time = time()
+    print "elapsed time:", end_time - start_time
+
+    # print model.word_vectors
+    word_vectors = model.word_vectors
+    print word_vectors.shape
+    # np.savetxt("./dir_random_coo_mtx/wgl.csv", word_vectors, delimiter=",", fmt='%.9e')
+    # np.savetxt("./dir_random_coo_mtx/hgl.csv", word_vectors.T, delimiter=",", fmt='%.9e')
+
+    print "score_accuracy:", score_accuracy(coo_mtx, word_vectors, model.word_biases, log_flag=False)
+    # print "score_accuracy:", score_accuracy_smallk(coo_mtx, model.model.word_vectors, model.model.word_vectors, log_flag=False)
+
+
 def benchmark_sklearn_nmf(coo_mtx):
     start_time = time()
 
@@ -259,9 +279,10 @@ def benchmark_np_and_carray():
 
 if __name__ == '__main__':
     # gen_random_coo_mtx(size=10000, density=0.01, filebase="./dir_random_coo_mtx")
-    coo_mtx = load_coo_mtx(filepath="./dir_random_coo_mtx/coo_rand.mtx", )
+    coo_mtx = load_coo_mtx(filepath="./dir_random_coo_mtx/coo_rand_log.mtx", )
     # benchmark_glovewrapper(coo_mtx)
-    benchmark_glovetf(coo_mtx)
+    # benchmark_glovetf(coo_mtx)
+    benchmark_glove_gpu(coo_mtx)
     # benchmark_smallk_nmf(coo_mtx)
     # benchmark_sklearn_nmf(coo_mtx)
     

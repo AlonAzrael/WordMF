@@ -1,5 +1,6 @@
 
 
+
 import pycuda.driver as cuda
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
@@ -11,6 +12,9 @@ import time as t
 from time import time
 
 from jinja2 import Template
+
+
+
 
 
 def gen_glove_cuda_kernel(block_dim, grid_dim, n_features=10, learning_rate=0.05, max_loss=10, k_loss=2, gpu_thread_batch_size=1):
@@ -136,7 +140,6 @@ def fit_vectors(
         cols, 
         datas, 
         shuffle_indices, 
-        n_epochs=10, # must have this
         learning_rate=0.05, 
         max_count=100,
         alpha=0.75,
@@ -144,6 +147,7 @@ def fit_vectors(
         no_threads=4, # useless
         iter_counter=2,
         k_loss=2,
+        n_epochs=10, # must have this
     ):
 
     datas_size = len(datas)
@@ -190,11 +194,16 @@ def fit_vectors(
     gwordvec_sum_gradients = gpuarray.to_gpu(wordvec_sum_gradients)
     
     gshuffle_indices = gpuarray.to_gpu(shuffle_indices)
+    print gshuffle_indices.shape
 
     start_time = time()
 
     for i in xrange(n_epochs):
+        print('Epoch %s' % i), 'size of matrix:', datas_size
+
         shuffle_indices = random.permutation(datas_size).astype("int32")
+        print shuffle_indices.shape
+
         gshuffle_indices.set(shuffle_indices)
 
         glove_kernel(
@@ -211,6 +220,15 @@ def fit_vectors(
 
     return word_vectors_out, word_biases
 
+
+
+
+
+
+"""
+test 
+============================================
+"""
 
 def run_glove_gpu(n_epochs=50, n_features=10, datas_size=10000, n_words=10000, check_error=False):
     # for demo usage
@@ -267,6 +285,9 @@ def random_numbers():
     start = t.time()
     valid = np.logical_and(-1 < x , x < +1)
     print "Found values", np.sum(valid), "elapsed time:", t.time() - start
+
+
+
 
 
 if __name__ == '__main__':
