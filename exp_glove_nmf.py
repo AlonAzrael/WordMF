@@ -280,9 +280,11 @@ def benchmark_np_and_carray():
 if __name__ == '__main__':
     # gen_random_coo_mtx(size=10000, density=0.01, filebase="./dir_random_coo_mtx")
     coo_mtx = load_coo_mtx(filepath="./dir_random_coo_mtx/coo_rand_log.mtx", )
+    # print np.mean(coo_mtx.data)
+    
     # benchmark_glovewrapper(coo_mtx)
     # benchmark_glovetf(coo_mtx)
-    benchmark_glove_gpu(coo_mtx)
+    # benchmark_glove_gpu(coo_mtx)
     # benchmark_smallk_nmf(coo_mtx)
     # benchmark_sklearn_nmf(coo_mtx)
     

@@ -145,6 +145,7 @@ cdef class WordCoocCounter:
         cdef set preserved_word_id_set = set()
         cdef list word_id_list = []
         cdef int n_cooc = 0
+        cdef int n_freq = 0
 
         assert n_top != 0
 
@@ -154,9 +155,11 @@ cdef class WordCoocCounter:
         if n_top < 0:
             n_top = n_total_word + n_top
 
-        if n_total_word > n_top:
+        if n_total_word > n_top or min_freq > 0:
             sorted_id2word_mapping = sorted(id2word_mapping.items(), key=lambda x:x[1][1])
+            sorted_id2word_mapping
 
+            # del word by n_top
             for i in range(0, n_total_word - n_top):
                 word_id = sorted_id2word_mapping[i][0]
                 # filter_word_id_list.append(word_id)
@@ -168,6 +171,25 @@ cdef class WordCoocCounter:
                     del word_cooc_dok[word_id]
                 except KeyError:
                     continue
+
+            # del word by min_freq
+            for i in range(0, len(sorted_id2word_mapping)):
+                n_freq = sorted_id2word_mapping[i][1][1]
+                if n_freq >= min_freq:
+                    break
+
+                word_id = sorted_id2word_mapping[i][0]
+                filter_word_id_set.add(word_id)
+
+                # delete word from both 
+                try:
+                    del id2word_mapping[word_id]
+                except KeyError:
+                    pass
+                try:
+                    del word_cooc_dok[word_id]
+                except KeyError:
+                    pass
 
         # print filter_word_id_listmin_cooc
         print "inside id2word_mapping:", id2word_mapping

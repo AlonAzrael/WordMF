@@ -17,6 +17,9 @@ def test_word_cooc_counter():
         "欧洲，世界，地球，",
         "你好，欧洲",
         "你好，欧洲",
+        "你好，宇宙",
+        "你好，太空",
+        "欧洲，宇宙，宇航",
     ]
     
     spliter = "，"
@@ -39,7 +42,7 @@ def test_word_cooc_counter():
     print wcc.word_cooc_dok
     print "=== end state ==="
 
-    wcc.filter_words(n_top=1.0, min_cooc=1)
+    wcc.filter_words(n_top=1.0, min_freq=2)
 
     print "=== state ==="
     for k,v in wcc.id2word_mapping.iteritems():
