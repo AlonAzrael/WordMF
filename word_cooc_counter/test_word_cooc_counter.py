@@ -1,10 +1,8 @@
 # coding:utf-8
 
-import pyximport
-import numpy as np
-pyximport.install(setup_args={"include_dirs":np.get_include()})
 
-from word_cooc_counter import WordCoocCounter
+
+from __init__ import WordCoocCounter, LodMatrix
 
 
 def test_word_cooc_counter():
@@ -32,7 +30,7 @@ def test_word_cooc_counter():
 
     # print doc_words_list
 
-    wcc = WordCoocCounter()
+    wcc = WordCoocCounter(debug_flag=True)
     wcc.fit_doc_words_batch(doc_words_list)
 
     # print wcc.word_cooc_dok
@@ -52,12 +50,22 @@ def test_word_cooc_counter():
     # for k,v in wcc.id2word_mapping.iteritems():
     #     print k, v[0]
 
+    print wcc.gen_word_coo_mtx()
 
 
+
+def test_lod_matrix():
+    x = LodMatrix()
+    for i in xrange(50000):
+        for j in xrange(500):
+            x.set(i,j, 1)
+
+    raw_input("pause")
 
 
 
 if __name__ == '__main__':
-    test_word_cooc_counter()
+    # test_word_cooc_counter()
+    test_lod_matrix()
 
 
