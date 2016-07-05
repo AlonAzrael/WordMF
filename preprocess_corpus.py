@@ -1,7 +1,7 @@
 # coding:utf-8
 
 
-from word_cooc_counter import WordCoocCounter, SzudMatrix
+from word_cooc_counter import WordCoocCounter, SuzuMatrix
 from jiebax import JiebaX
 JIEBAX = JiebaX()
 
@@ -15,7 +15,7 @@ from scipy.sparse import dok_matrix, lil_matrix
 import numpy as  np
 
 from sortedcontainers import SortedDict
-
+from pprint import pprint
 
 
 def load_docs(filepath):
@@ -129,7 +129,8 @@ def test_word_dict_memory_usage(filepath):
 
 def test_dod_memory_usage():
 
-    height = 50000; width = 500
+    height = 50; width = 6
+    s, b = 0, 0
     
     # x = {i:{j:1 for j in xrange(width)} for i in xrange(height)}
     # x = {i: SortedDict({j:1 for j in xrange(width)}) for i in xrange(height)}
@@ -163,10 +164,40 @@ def test_dod_memory_usage():
     #     for j in xrange(width):
     #         x[i,j] = 1
 
-    x = SzudMatrix(height, width)
+    x = SuzuMatrix(height, width)
+    # print x.calc_n_digits(2**64-1)
+    new_symi_mapping = {}
     for i in xrange(height):
         for j in xrange(width):
-            x.set(i,j,1)
+
+            if i >= j:
+                s, b = j, i
+            else:
+                s, b = i, j
+
+            new_symi_mapping[s] = s+1
+            new_symi_mapping[b] = b+1
+            
+            # s, b = i, j
+            
+            x.incr(s, b, s*b)
+    
+    # pprint(x.status())
+    print x.get(5, 20)
+    print x.get(20, 5)
+    print x.get(5, 5)
+    print x.get(20, 20)
+    x.reset_symi_all(new_symi_mapping)
+    x.del_symi_batch(set([5, 20]))
+
+    print "after clean"
+    print x.get(5, 20)
+    print x.get(6, 21)
+    print x.get(20, 5)
+    print x.get(5, 5)
+    print x.get(20, 20)
+
+    print x
 
     # np.ones((height, width), dtype=np.int32)
 

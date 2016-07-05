@@ -10,8 +10,6 @@ from libc.stdlib cimport malloc, free
 
 from libcpp.map cimport map
 from libcpp.unordered_map cimport unordered_map
-# from libcpp.set cimport set as cppset
-from libcpp.unordered_set cimport unordered_set as cppset
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref, preincrement as inc
 
@@ -20,6 +18,146 @@ from pprint import pprint
 
 
 
+
+ctypedef map[int, double]* map_pointer
+
+cdef class LodMatrix:
+
+    # in name of list of dict
+    # still too much memory
+    
+    # cdef map_pointer rows_array
+    cdef int n_rows
+    # cdef int max_rows_size
+    # cdef double expand_rate
+
+    cdef vector[map[int, double]] rows_vector
+
+    def __cinit__(self, int n_rows=100):
+
+        # self.expand_rate = 1.5
+
+        # self.rows_array = <map_pointer>malloc(n_rows*sizeof(map_pointer))
+        # for i in range(n_rows):
+        #     self.rows_array[i] = new map[int, double]()
+
+        self.n_rows = n_rows
+        # self.max_rows_size = n_rows
+
+    def __dealloc__(self):
+        # for i in range(self.n_rows):
+        #     del self.rows_array[i]
+
+        # free(self.rows_array)
+
+        self.rows_vector.clear()
+
+    def set(self, int row_i, int col_i, double val):
+        # will auto epxand rows_array 
+        # cdef int n_rows = self.n_rows
+        # cdef int new_rows_size = self.max_rows_size
+        # cdef map_pointer rows_array = self.rows_array
+        # cdef map_pointer new_rows_array
+
+        # cdef int i = 0
+
+        # if row_i >= self.max_rows_size:
+        #     # epxand 
+        #     new_rows_size = n_rows*self.expand_rate
+
+        #     new_rows_array = <map_pointer>malloc(new_rows_size*sizeof(map_pointer))
+        #     for i in range(n_rows):
+        #         new_rows_array[i] = rows_array[i]
+
+        #     for i in range(n_rows, new_rows_size):
+        #         new_rows_array[i] = new map[int, double]()
+
+        #     self.rows_array = new_rows_array
+        #     self.max_rows_size = new_rows_size
+
+        #     # free the old
+        #     free(rows_array)
+
+        # deref(self.rows_array[row_i])[col_i] = val
+
+        if row_i >= self.rows_vector.size():
+            self.rows_vector.resize(row_i+1)
+
+        self.rows_vector[row_i][col_i] = val
+
+        # if row_i >= self.n_rows: # note for array bound
+        #     self.n_rows = row_i + 1
+
+    def get(self, int row_i, int col_i):
+        cdef double val = 0
+
+        if row_i >= self.rows_vector.size():
+            return None
+
+        cdef map[int, double] col_dict = self.rows_vector[row_i]
+        cdef map[int, double].iterator it = col_dict.find(col_i)
+        
+        if it == col_dict.end():
+            return None
+        else:
+            val = deref(it).second
+            return val
+
+    def incr(self, int row_i, int col_i):
+        cdef map[int, double] col_dict
+        cdef map[int, double].iterator it
+        
+        if row_i >= self.rows_vector.size():
+            self.rows_vector.resize(row_i)
+
+            self.rows_vector[row_i][col_i] = 1
+
+        else:
+            col_dict = self.rows_vector[row_i]
+            it = col_dict.find(col_i)
+            if it == col_dict.end():
+                col_dict[col_i] = 1
+            else:
+                col_dict[col_i] += 1
+                # self.rows_vector[row_i][col_i] += 1
+
+    def contains(self, int row_i, int col_i=-1):
+        return
+
+
+
+# cdef inline void resize_vector(vector[double] sas) nogil:
+
+
+
+cdef class AoaMatrix:
+
+    # in name of array of array
+    cdef vector[vector[double]] rows_vector
+
+    def __cinit__(self, int height, int width):
+        pass
+
+    def set(self, int row_i, int col_i, double val):
+        if row_i >= self.rows_vector.size():
+            self.rows_vector.resize(row_i+1)
+
+        cdef vector[double] col_vector = self.rows_vector[row_i]
+
+        if col_i >= col_vector.size():
+            col_vector.resize(col_i+1)
+
+        # col_vector[] = 
+        self.rows_vector[row_i][col_i] = val
+
+    def get(self, int row_i, int col_i):
+        return
+
+    def incr(self, int row_i, int col_i):
+        return
+
+    def contains(self, int row_i, int col_i=-1):
+        return
 
 
 ctypedef unsigned long INDEX_T
@@ -58,14 +196,15 @@ cdef inline int _calc_n_digits(unsigned long hash_val):
     # int bucket_size[21][10]
 
 
+
 cdef class SuzuMatrix:
 
-    # cdef map[unsigned long, double] dok_dict
-    # cdef map[int, float] dok_dict_ab
-    # cdef map[int, float] dok_dict_ba
+    cdef map[unsigned long, double] dok_dict
+    cdef map[int, float] dok_dict_ab
+    cdef map[int, float] dok_dict_ba
 
-    # cdef unsigned long* indices
-    # cdef double* datas
+    cdef unsigned long* indices
+    cdef double* datas
 
     # cdef vector[vector[INDEX_T*]]* indices_bucket_list
     cdef vector[INDEX_T]* rowcol_buckets[21][10]
@@ -80,32 +219,24 @@ cdef class SuzuMatrix:
         #     self.indices[i] = i
         #     self.datas[i] = 1.0
 
-        cdef vector[INDEX_T]* temp_rowcol_vector 
-        cdef vector[DATA_T]* temp_data_vector 
+        cdef vector[INDEX_T] temp_rowcol_vector 
+        cdef vector[DATA_T] temp_data_vector 
 
         cdef int i = 0, j = 0
-        for i in range(1, 21):
-            for j in range(1, 10):
+        for i in range(21):
+            for j in range(10):
                 self.rowcol_buckets[i][j] = new vector[INDEX_T]()
                 self.data_buckets[i][j] = new vector[DATA_T]()
-            
-            if 0:
-                temp_rowcol_vector = self.rowcol_buckets[i][j]
+
+                temp_rowcol_vector = deref(self.rowcol_buckets[i][j])
                 temp_rowcol_vector.push_back(0)
-                temp_data_vector = self.data_buckets[i][j]
+                temp_data_vector = deref(self.data_buckets[i][j])
                 temp_data_vector.push_back(0.77)
 
-        # print "init status"
-        # pprint(self.status())
+        print "init status"
+        pprint(self.status())
 
         pass
-
-    def __dealloc__(self):
-        cdef int i = 0, j = 0
-        for i in range(1, 21):
-            for j in range(1, 10):
-                del self.rowcol_buckets[i][j]
-                del self.data_buckets[i][j]
 
     def calc_n_digits(self, unsigned long number):
         cdef int n_digits = 0
@@ -133,15 +264,15 @@ cdef class SuzuMatrix:
         cdef int digit_i = _calc_n_digits(hash_val)
         cdef int last_digit = hash_val % 10
 
-        cdef vector[INDEX_T]* cur_rowcol_vector = self.rowcol_buckets[digit_i][last_digit]
-        cdef vector[DATA_T]* cur_data_vector = self.data_buckets[digit_i][last_digit]
+        cdef vector[INDEX_T] cur_rowcol_vector = deref(self.rowcol_buckets[digit_i][last_digit])
+        cdef vector[DATA_T] cur_data_vector = deref(self.data_buckets[digit_i][last_digit])
 
         cdef int it = 0, start_it = 0, end_it = cur_rowcol_vector.size() - 1, start_pos = 0, end_pos = cur_rowcol_vector.size()
         cdef int start_gap_end = end_it - start_it
         # print start_gap_end
         cdef INDEX_T cur_rowcol = 0
 
-        cdef int i = 0, cur_pos = 0, insert_flag = 0, append_flag = 0
+        cdef int i = 0, cur_pos = 0, insert_flag = 0
 
         # bisect left of cur_rowcol_vector, find insert position
         if cur_rowcol_vector.size() == 0: # empty bucket
@@ -156,7 +287,7 @@ cdef class SuzuMatrix:
                 # if gap between start_it and end_it smaller than 5
                 if start_gap_end <= 5:
                     for it in range(start_it, end_it+1):
-                        cur_rowcol = deref(cur_rowcol_vector)[it]
+                        cur_rowcol = cur_rowcol_vector[it]
 
                         if hash_val < cur_rowcol:
                             cur_pos = it
@@ -172,8 +303,7 @@ cdef class SuzuMatrix:
                             continue
                     
                     else:
-                        append_flag = 1
-                        cur_pos = end_it + 1
+                        cur_pos = end_it
                     
                     break
 
@@ -182,7 +312,7 @@ cdef class SuzuMatrix:
                     # get middle it
                     it = (start_it + end_it) / 2
 
-                    cur_rowcol = deref(cur_rowcol_vector)[it]
+                    cur_rowcol = cur_rowcol_vector[it]
 
                     if hash_val == cur_rowcol : # find position
                         cur_pos = it
@@ -200,11 +330,11 @@ cdef class SuzuMatrix:
             # final process
             if get_flag:
 
-                if insert_flag or append_flag: # no such item
+                if insert_flag: # no such item
                     return None
 
                 else:
-                    return deref(cur_data_vector)[cur_pos]
+                    return cur_data_vector[it]
             
             else:
 
@@ -212,26 +342,13 @@ cdef class SuzuMatrix:
                     cur_rowcol_vector.insert(cur_rowcol_vector.begin()+cur_pos, hash_val)
                     cur_data_vector.insert(cur_data_vector.begin()+cur_pos, val)
 
-                    # if int(val) == 100:
-                    #     print "insert", row_i, col_i, cur_pos, deref(cur_data_vector)[cur_pos]
-
-                elif append_flag:
-                    cur_rowcol_vector.push_back(hash_val)
-                    cur_data_vector.push_back(val)
-
-                    # if int(val) == 100:
-                    #     print "append", row_i, col_i, cur_pos, deref(cur_data_vector)[cur_pos]
-
-                else: # already in 
+                else:
 
                     if incr_flag:
-                        deref(cur_data_vector)[cur_pos] = deref(cur_data_vector)[cur_pos] + val
-                        
-                        # if int(val) == 100:
-                        #     print "incr", row_i, col_i, cur_pos, deref(cur_data_vector)[cur_pos]
+                        cur_data_vector[it] += val
 
                     else:
-                        deref(cur_data_vector)[cur_pos] = val
+                        cur_data_vector[it] = val
 
 
         # self.dok_dict[hash_val] = val
@@ -242,221 +359,21 @@ cdef class SuzuMatrix:
     def get(self, INDEX_T row_i, INDEX_T col_i):
         return self._bisect_op(row_i, col_i, get_flag=1)
 
-    def incr(self, INDEX_T row_i, INDEX_T col_i, DATA_T val):
-        return self._bisect_op(row_i, col_i, val, incr_flag=1)
-
-    def shrink_by_thres(self, DATA_T thres):
-
-        cdef vector[INDEX_T]* cur_rowcol_vector
-        cdef vector[DATA_T]* cur_data_vector
-        cdef vector[INDEX_T].iterator rowcol_vector_iter
-        cdef vector[DATA_T].iterator data_vector_iter
-
-        cdef INDEX_T cur_rowcol = 0
-        cdef DATA_T cur_data = 0
-
-        # ite all 
-        for i in range(1, 21):
-            for j in range(1, 10):
-                cur_rowcol_vector = self.rowcol_buckets[i][j]
-                cur_data_vector = self.data_buckets[i][j]
-
-                # ite one 
-                rowcol_vector_iter = cur_rowcol_vector.begin()
-                data_vector_iter = cur_data_vector.begin()
-
-                while rowcol_vector_iter != cur_rowcol_vector.end():
-                    # cur_rowcol = deref(rowcol_vector_iter)
-                    cur_data = deref(data_vector_iter)
-
-                    if cur_data <= thres:
-                        rowcol_vector_iter = cur_rowcol_vector.erase(rowcol_vector_iter)
-                        data_vector_iter = cur_data_vector.erase(data_vector_iter)
-
-                    else:
-                        inc(rowcol_vector_iter)
-                        inc(data_vector_iter)
-
-    def del_symi_batch(self, set symi_set):
-
-        # del stuff in SuzuMatrix is expensive, because we have to ite through all
-        # symi is short for symmetric index, only work if matrix is symmetric, and symi is both row_i and col_i
-
-        cdef cppset[INDEX_T] symi_cppset = symi_set
-        cdef cppset[INDEX_T].iterator symi_cppset_end = symi_cppset.end()
-
-        cdef vector[INDEX_T]* cur_rowcol_vector
-        cdef vector[DATA_T]* cur_data_vector
-        cdef vector[INDEX_T].iterator rowcol_vector_iter
-        cdef vector[DATA_T].iterator data_vector_iter
-
-        cdef INDEX_T cur_rowcol = 0
-        cdef unsigned int cur_row = 0
-        cdef unsigned int cur_col = 0
-
-        # ite all 
-        for i in range(1, 21):
-            for j in range(1, 10):
-                cur_rowcol_vector = self.rowcol_buckets[i][j]
-                cur_data_vector = self.data_buckets[i][j]
-
-                # ite one 
-                rowcol_vector_iter = cur_rowcol_vector.begin()
-                data_vector_iter = cur_data_vector.begin()
-
-                while rowcol_vector_iter != cur_rowcol_vector.end():
-                    cur_rowcol = deref(rowcol_vector_iter)
-                    cur_col = <unsigned int>cur_rowcol
-                    cur_row = <unsigned int>(cur_rowcol >> 32)
-
-                    if symi_cppset.find(cur_row) != symi_cppset_end or symi_cppset.find(cur_col) != symi_cppset_end: # cur_row should be del
-                        rowcol_vector_iter = cur_rowcol_vector.erase(rowcol_vector_iter)
-                        data_vector_iter = cur_data_vector.erase(data_vector_iter)
-
-                    else:
-                        inc(rowcol_vector_iter)
-                        inc(data_vector_iter)
-
-    def reset_symi_all(self, dict symi_mapping_dict):
-
-        # cdef vector[INDEX_T]* new_rowcol_buckets[21][10]
-        # cdef vector[DATA_T]* new_data_buckets[21][10]
-
-        cdef unordered_map[unsigned int, unsigned int] symi_mapping = symi_mapping_dict
-        cdef unordered_map[unsigned int, unsigned int].iterator symi_mapping_row_it, symi_mapping_col_it
-
-        cdef vector[INDEX_T]* old_rowcol_buckets[21][10]
-        cdef vector[DATA_T]* old_data_buckets[21][10]
-
-        cdef int i = 0, j = 0
-        for i in range(1, 21):
-            for j in range(1, 10):
-                old_rowcol_buckets[i][j] = self.rowcol_buckets[i][j]
-                old_data_buckets[i][j] = self.data_buckets[i][j]
-
-                # pre-allocated memory
-                self.rowcol_buckets[i][j] = new vector[INDEX_T](old_rowcol_buckets[i][j].size())
-                self.data_buckets[i][j] = new vector[DATA_T](old_data_buckets[i][j].size())
-
-        cdef vector[INDEX_T]* cur_rowcol_vector
-        cdef vector[DATA_T]* cur_data_vector
-        cdef vector[INDEX_T].iterator rowcol_vector_iter
-        cdef vector[DATA_T].iterator data_vector_iter
-
-        cdef INDEX_T cur_rowcol = 0
-        cdef DATA_T cur_data = 0
-        cdef unsigned int cur_row = 0
-        cdef unsigned int cur_col = 0
-
-        # ite all and set all
-        for i in range(1, 21):
-            for j in range(1, 10):
-                cur_rowcol_vector = old_rowcol_buckets[i][j]
-                cur_data_vector = old_data_buckets[i][j]
-
-                rowcol_vector_iter = cur_rowcol_vector.begin()
-                data_vector_iter = cur_data_vector.begin()
-
-                while rowcol_vector_iter != cur_rowcol_vector.end():
-
-                    cur_rowcol = deref(rowcol_vector_iter)
-                    cur_data = deref(data_vector_iter)
-                    cur_col = <unsigned int>cur_rowcol
-                    cur_row = <unsigned int>(cur_rowcol >> 32)
-
-                    # update only when both row and col has mapping
-                    symi_mapping_row_it = symi_mapping.find(cur_row)
-                    symi_mapping_col_it = symi_mapping.find(cur_col)
-
-                    if symi_mapping_row_it != symi_mapping.end() and symi_mapping_col_it != symi_mapping.end() :
-
-                        # print "old symi", cur_row, cur_col
-
-                        cur_row = deref(symi_mapping_row_it).second
-                        cur_col = deref(symi_mapping_col_it).second
-
-                        # print "new symi", cur_row, cur_col
-                    
-                    else:
-                        # print "missing symi", cur_row, cur_col
-                        pass
-
-                    self.set(cur_row, cur_col, cur_data)
-
-                    inc(rowcol_vector_iter)
-                    inc(data_vector_iter)
-
-                # clear old buckets, otherwise lead to memory leak
-                del old_rowcol_buckets[i][j]
-                del old_data_buckets[i][j]
-
-
     def status(self):
         cdef dict status_dict = {}
 
-        cdef vector[INDEX_T]* cur_rowcol_vector
-        cdef vector[DATA_T]* cur_data_vector
+        cdef vector[INDEX_T] cur_rowcol_vector 
+        cdef vector[DATA_T] cur_data_vector
 
         cdef int i = 0, j = 0
-        for i in range(1, 21):
-            for j in range(1, 10):
-                cur_rowcol_vector = self.rowcol_buckets[i][j]
-                cur_data_vector = self.data_buckets[i][j]
+        for i in range(21):
+            for j in range(10):
+                cur_rowcol_vector = deref(self.rowcol_buckets[i][j])
+                cur_data_vector = deref(self.data_buckets[i][j])
 
                 status_dict[(i,j)] = [cur_rowcol_vector.size(), cur_data_vector.size()]
 
         return status_dict
-
-    def astuples(self):
-        cdef vector[INDEX_T]* cur_rowcol_vector
-        cdef vector[DATA_T]* cur_data_vector
-        cdef vector[INDEX_T].iterator rowcol_vector_iter
-        cdef vector[DATA_T].iterator data_vector_iter
-
-        cdef INDEX_T cur_rowcol = 0
-        cdef DATA_T cur_data = 0
-        cdef unsigned int cur_row = 0
-        cdef unsigned int cur_col = 0
-
-        cdef list tuple_list = []
-
-        # ite all and set all
-        cdef int i = 0, j = 0
-        for i in range(1, 21):
-            for j in range(1, 10):
-                cur_rowcol_vector = self.rowcol_buckets[i][j]
-                cur_data_vector = self.data_buckets[i][j]
-
-                rowcol_vector_iter = cur_rowcol_vector.begin()
-                data_vector_iter = cur_data_vector.begin()
-
-                while rowcol_vector_iter != cur_rowcol_vector.end():
-
-                    cur_rowcol = deref(rowcol_vector_iter)
-                    cur_data = deref(data_vector_iter)
-                    cur_col = <unsigned int>cur_rowcol
-                    cur_row = <unsigned int>(cur_rowcol >> 32)
-
-                    if cur_data != 0:
-                        tuple_list.append( (cur_row,cur_col,cur_data) )
-
-                    inc(rowcol_vector_iter)
-                    inc(data_vector_iter)
-
-        return tuple_list
-
-    def tostring(self):
-        cdef list tuple_list = self.astuples(), ss_list = []
-        for cur_row, cur_col, cur_data in sorted(tuple_list, key=lambda x: x[0]):
-            ss_list.append(str(cur_row)+","+str(cur_col)+":"+str(cur_data))
-
-        return "\n".join(ss_list)
-
-    def __repr__(self):
-        return self.tostring()
-
-    def __str__(self):
-        return self.tostring()
 
 
 
@@ -466,9 +383,7 @@ cdef class WordCoocCounter:
 
     cdef public dict word2id_mapping
     cdef public dict word_cooc_dok
-    cdef public SuzuMatrix word_cooc_suzu
     cdef public dict id2word_mapping
-
     cdef public int n_total_word
     cdef public object debug_flag
 
@@ -477,8 +392,6 @@ cdef class WordCoocCounter:
         self.word_cooc_dok = {}
         self.id2word_mapping = {}
         self.n_total_word = 0
-
-        self.word_cooc_suzu = SuzuMatrix()
 
         self.debug_flag = debug_flag
 
@@ -514,7 +427,7 @@ cdef class WordCoocCounter:
         """
 
         cdef dict word2id_mapping = self.word2id_mapping
-        cdef SuzuMatrix word_cooc_suzu = self.word_cooc_suzu
+        cdef dict word_cooc_dok = self.word_cooc_dok # word_cooc_dok cant be used due to crazy-expensive memory usage
         cdef dict id2word_mapping = self.id2word_mapping
 
         # cdef list doc_words = []
@@ -575,13 +488,34 @@ cdef class WordCoocCounter:
                         big_word_id = cword_id
                         small_word_id = word_id
 
-                    word_cooc_suzu.incr(small_word_id, big_word_id, 1)
+                    try:
+                        word_dict = word_cooc_dok[small_word_id]
+                        try:
+                            word_dict[big_word_id] += 1
+                        except KeyError:
+                            # print word_cooc_dok
+                            word_dict[big_word_id] = 1
+                    except KeyError:
+                        word_cooc_dok[small_word_id] = {big_word_id:1}
+
+        # manually free memory
+        if 0:
+            for word_id,word_dict in word_cooc_dok.items():
+                word_dict.clear()
+
+            self.word_cooc_dok.clear()
+            word_cooc_dok.clear()
+            
+            id2word_mapping.clear()
+            self.id2word_mapping.clear()
+            
+            word2id_mapping.clear()
+            self.word2id_mapping.clear()
 
     def filter_words(self, n_top=1.0, int min_freq=-1, int min_cooc=1, auto_min_freq=True):
         # cdef dict word2id_mapping = self.word2id_mapping
         cdef dict id2word_mapping = self.id2word_mapping
-        # cdef dict word_cooc_dok = self.word_cooc_dok
-        cdef SuzuMatrix word_cooc_suzu = self.word_cooc_suzu
+        cdef dict word_cooc_dok = self.word_cooc_dok
 
         cdef list sorted_id2word_mapping = []
         cdef int word_id = 0
@@ -595,7 +529,6 @@ cdef class WordCoocCounter:
         cdef list empty_word_id_list = []
         cdef set empty_word_id_set = set()
         cdef set preserved_word_id_set = set()
-        
         cdef list word_id_list = []
         cdef int n_cooc = 0
         cdef int n_freq = 0
@@ -614,6 +547,7 @@ cdef class WordCoocCounter:
 
         if n_total_word > n_top or min_freq > 0:
             sorted_id2word_mapping = sorted(id2word_mapping.items(), key=lambda x:x[1][1])
+            sorted_id2word_mapping
 
             # del word by n_top
             for i in range(0, n_total_word - n_top):
@@ -623,6 +557,10 @@ cdef class WordCoocCounter:
 
                 # delete word from both 
                 del id2word_mapping[word_id]
+                try:
+                    del word_cooc_dok[word_id]
+                except KeyError:
+                    continue
 
             # del word by min_freq
             for i in range(0, len(sorted_id2word_mapping)):
@@ -638,15 +576,38 @@ cdef class WordCoocCounter:
                     del id2word_mapping[word_id]
                 except KeyError:
                     pass
+                try:
+                    del word_cooc_dok[word_id]
+                except KeyError:
+                    pass
 
         # print filter_word_id_listmin_cooc
         if self.debug_flag:
             print "inside id2word_mapping:", id2word_mapping
-            print "inside word_cooc_suzu:", word_cooc_suzu
+            print "inside word_cooc_dok:", word_cooc_dok
 
         # remove filter_word and min_cooc in cooc_dok
-        word_cooc_suzu.del_symi_batch(filter_word_id_set)
-        preserved_word_id_set = set(id2word_mapping.keys())
+        for word_id, word_dict in word_cooc_dok.iteritems():
+
+            # word_id_list = []
+            for cword_id, n_cooc in word_dict.items():
+                if cword_id in filter_word_id_set:
+                    del word_dict[cword_id]
+
+                # if n_cooc <= min_cooc:
+
+                else:
+                    preserved_word_id_set.add(cword_id)
+
+            if len(word_dict) == 0:
+                # empty_word_id_set.add(word_id)
+                empty_word_id_list.append(word_id)
+            else:
+                preserved_word_id_set.add(word_id)
+
+        for word_id in empty_word_id_list:
+            # word_cooc_dok only have small word_id, so...
+            del word_cooc_dok[word_id]
 
         if self.debug_flag:
             print "inside preserved_word_id_set:", preserved_word_id_set
@@ -655,18 +616,22 @@ cdef class WordCoocCounter:
         cdef dict word2id_mapping = self.word2id_mapping
         cdef dict new_id2word_mapping = {}
         cdef dict old_id2new_id_mapping = {}
-        # cdef dict new_word_cooc_dok = {}
+        cdef dict new_word_cooc_dok = {}
         cdef dict new_word2id_mapping = {}
         cdef int new_word_id = 0
         cdef dict new_word_dict = {}
         cdef str word = ""
 
-        # new id2word_mapping
         for new_word_id,word_id in enumerate(preserved_word_id_set):
             new_id2word_mapping[new_word_id] = id2word_mapping[word_id]
             old_id2new_id_mapping[word_id] = new_word_id
 
-        self.word_cooc_suzu.reset_symi_all(old_id2new_id_mapping)
+        for word_id,word_dict in word_cooc_dok.iteritems():
+            new_word_dict = {}
+            for cword_id, n_cooc in word_dict.iteritems():
+                new_word_dict[old_id2new_id_mapping[cword_id]] = n_cooc
+            
+            new_word_cooc_dok[old_id2new_id_mapping[word_id]] = new_word_dict
 
         for word, word_id in word2id_mapping.iteritems():
             try:
@@ -675,7 +640,7 @@ cdef class WordCoocCounter:
                 continue
 
         self.id2word_mapping = new_id2word_mapping
-        # self.word_cooc_dok = new_word_cooc_dok
+        self.word_cooc_dok = new_word_cooc_dok
         self.word2id_mapping = new_word2id_mapping
 
     def gen_word_coo_mtx(self):
