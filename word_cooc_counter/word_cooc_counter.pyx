@@ -18,6 +18,7 @@ from cython.operator cimport dereference as deref, preincrement as inc
 
 
 from pprint import pprint
+import pprint
 import json
 
 
@@ -303,7 +304,10 @@ cdef class AoaMatrix:
         return op_sprm_matrix(self.sprm_p, row_i, col_i, val, incr_flag=1, get_flag=0)
 
     def todok(self):
+        # for readable compability
+
         cdef dict dok = {}, temp_dict = {}
+        cdef list col_list = []
 
         cdef int n_rows = self.indices.size(), row_i = 0, j = 0, col_i = 0, n_cols = 0
         cdef vector[int]* row_indices
@@ -315,14 +319,14 @@ cdef class AoaMatrix:
             row_data = &(deref(self.data)[row_i])
             n_cols = row_indices.size()
 
-            temp_dict = {}
-            dok[row_i] = temp_dict
+            col_list = []
+            dok[row_i] = col_list
 
             for j in range(n_cols):
                 col_i = deref(row_indices)[j]
                 val = deref(row_data)[j]
 
-                temp_dict[col_i] = val
+                col_list.append((col_i, val))
 
         return dok
 
@@ -352,7 +356,35 @@ cdef class AoaMatrix:
         return coo_mtx
 
     def tostring(self):
-        return json.dumps(self.todok(), indent=2)
+        return pprint.pformat(self.todok())
+
+    def fromstring(self, str dok_json):
+        cdef dict dok = eval(dok_json)
+        cdef int row_i, n_rows = len(dok), col_i = 0
+        cdef dict col_dict
+        cdef list col_list
+        cdef DATA_T val = 0
+
+        cdef vector[int]* row_indices
+        cdef vector[DATA_T]* row_data
+
+        cdef int i = 0, j = 0
+
+        # init rows
+        for i in range(n_rows):
+            self.indices.push_back(vector[int]())
+            self.data.push_back(vector[DATA_T]())
+
+        # init cols
+        for row_i, col_list in dok.iteritems():
+            row_indices = &(deref(self.indices)[row_i])
+            row_data = &(deref(self.data)[row_i])
+
+            for col_i, val in col_list:
+                row_indices.push_back(col_i)
+                row_data.push_back(val)
+
+        return self
 
     def get_aoa(self):
         cdef list aoa_indices = deref(self.indices)
@@ -379,8 +411,8 @@ cdef class WordCoocDict:
 
     cdef public _dict
 
-    def __cinit__(self):
-        self._dict = {}
+    def __cinit__(self, init_dict={}):
+        self._dict = init_dict
 
     def add(self, str word):
         try:
@@ -421,6 +453,28 @@ cdef class WordCoocDict:
             self._dict[word] += val
         except KeyError:
             self._dict[word] = val
+
+    def tostring(self):
+        return pprint.pformat(self._dict)
+
+    def fromstring(self, str dict_s):
+        self._dict = eval(dict_s)
+
+
+
+cdef class CorpusReader:
+
+    cdef public str filepath
+
+    def __init__(self, filepath):
+        self.filepath = filepath
+
+    def __iter__(self):
+        cdef str line
+        with open(self.filepath, "r") as F:
+            for line in F:
+                yield line
+
 
 
 
@@ -466,6 +520,10 @@ cdef class WordCoocCounter:
 
         cdef int i = 0, j = 0
 
+        # multiple type words_list
+        # if type(words_list_data) == file:
+        #     words_list = words_list_data.xreadlines()
+
         self.fit_dictionary(words_list, min_word_freq)
 
         # gen cooc matrix
@@ -476,7 +534,7 @@ cdef class WordCoocCounter:
                 words = tuple(words_x)
 
             sent_word_id_list = []
-            
+
             # words 2 ids
             for word in words:
                 word_id = self._wcc_dict.get(word, [-1,0])[0]
@@ -512,7 +570,42 @@ cdef class WordCoocCounter:
     def tocoo(self):
         return self._aoa_mtx.tocoo()
 
-        
+    def save(self, filepath):
+
+        cdef str wcc_dict_s = self._wcc_dict.tostring()
+        cdef str aoa_mtx_s = self._aoa_mtx.tostring()
+        cdef str save_s = wcc_dict_s + "\n" + "@@@@@" + "\n" + aoa_mtx_s
+
+        with open(filepath, "w") as F:
+            F.write(save_s)
+
+    def load(self, filepath):
+
+        cdef list wcc_dict_s_list = [], aoa_mtx_s_list = [], cur_list = []
+        cdef list ll = [wcc_dict_s_list, aoa_mtx_s_list]
+        cdef str line, wcc_dict_s, aoa_mtx_s
+
+        cur_list = ll.pop(0)
+
+        with open(filepath, "r") as F:
+            for line in F:
+                # line = line.strip()
+                if line == "@@@@@\n":
+                    cur_list = ll.pop(0)
+                else:
+                    cur_list.append(line)
+
+        wcc_dict_s = "".join(wcc_dict_s_list)
+        aoa_mtx_s = "".join(aoa_mtx_s_list)
+
+        # print wcc_dict_s
+        # print "====="
+        # print aoa_mtx_s
+
+        self._wcc_dict.fromstring(wcc_dict_s)
+        self._aoa_mtx.fromstring(aoa_mtx_s)
+
+        return self
 
 
 

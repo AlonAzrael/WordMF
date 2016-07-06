@@ -2283,12 +2283,12 @@ static PyObject *__pyx_pw_5glove_12glove_cython_1fit_vectors(PyObject *__pyx_sel
     if (values[13]) {
       __pyx_v_iter_counter = __Pyx_PyInt_As_int(values[13]); if (unlikely((__pyx_v_iter_counter == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 34, __pyx_L3_error)
     } else {
-      __pyx_v_iter_counter = ((int)2);
+      __pyx_v_iter_counter = ((int)1);
     }
     if (values[14]) {
       __pyx_v_k_loss = __Pyx_PyInt_As_int(values[14]); if (unlikely((__pyx_v_k_loss == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 35, __pyx_L3_error)
     } else {
-      __pyx_v_k_loss = ((int)1);
+      __pyx_v_k_loss = ((int)2);
     }
   }
   goto __pyx_L4_argument_unpacking_done;
@@ -2624,18 +2624,18 @@ static PyObject *__pyx_pf_5glove_12glove_cython_fit_vectors(CYTHON_UNUSED PyObje
                               __pyx_t_22 = __pyx_v_word_b;
                               __pyx_v_prediction = ((__pyx_v_prediction + (*((double *) ( /* dim=0 */ ((char *) (((double *) __pyx_v_wordbias.data) + __pyx_t_21)) )))) + (*((double *) ( /* dim=0 */ ((char *) (((double *) __pyx_v_wordbias.data) + __pyx_t_22)) ))));
 
-                              /* "glove/glove_cython.pyx":101
+                              /* "glove/glove_cython.pyx":100
+ *                 # no log version
  *                 # entry_weight = double_min(1.0, (count / max_count))
- *                 # entry_weight = count / max_count
- *                 entry_weight = 1 # the matrix should be filtered, so all words are important             # <<<<<<<<<<<<<<
+ *                 entry_weight = count / max_count             # <<<<<<<<<<<<<<
+ *                 # entry_weight = 1 # the matrix should be filtered, so all words are important
  *                 loss = entry_weight * (prediction - count) * k_loss
- * 
  */
-                              __pyx_v_entry_weight = 1.0;
+                              __pyx_v_entry_weight = (__pyx_v_count / __pyx_v_max_count);
 
                               /* "glove/glove_cython.pyx":102
- *                 # entry_weight = count / max_count
- *                 entry_weight = 1 # the matrix should be filtered, so all words are important
+ *                 entry_weight = count / max_count
+ *                 # entry_weight = 1 # the matrix should be filtered, so all words are important
  *                 loss = entry_weight * (prediction - count) * k_loss             # <<<<<<<<<<<<<<
  * 
  *                 # Clip the loss for numerical stability.

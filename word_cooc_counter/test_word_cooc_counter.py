@@ -38,8 +38,22 @@ def test_word_cooc_counter():
     print "=== state ==="
     for k,v in wcc.get_dictionary().iteritems():
         print k, v[0], v[1]
-    print wcc.get_aoa_mtx()
     print wcc.tocoo()
+    print "=== end state ==="
+
+    # aoa_mtx = wcc.get_aoa_mtx()
+    # dok_json = aoa_mtx.tostring()
+    # print dok_json
+    # print AoaMatrix().fromstring(dok_json)
+
+    wcc.save("./xxx")
+
+    nwcc = WordCoocCounter()
+    nwcc.load("./xxx")
+    print "=== state ==="
+    for k,v in nwcc.get_dictionary().iteritems():
+        print k, v[0], v[1]
+    print nwcc.tocoo()
     print "=== end state ==="
 
     # print "=== state ==="

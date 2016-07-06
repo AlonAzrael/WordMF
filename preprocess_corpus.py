@@ -1,7 +1,7 @@
 # coding:utf-8
 
 
-from word_cooc_counter import WordCoocCounter, SuzuMatrix
+from word_cooc_counter import WordCoocCounter, CorpusReader
 from jiebax import JiebaX
 JIEBAX = JiebaX()
 
@@ -85,46 +85,26 @@ def docs2wordslist(filepath):
 def wordslist2coomat(filepath):
     wordslist = []
 
-    with open(filepath, "r") as F:
-        # for line in F.xreadlines():
-        #     words = line.split()
-        #     wordslist.append(words)
-        wordslist = F.xreadlines()
+    corpus_reader = CorpusReader(filepath)
 
-        wcc = WordCoocCounter(debug_flag=False)
-        wcc.fit_doc_words_batch(wordslist)
+    print "init wcc ..."
+    wcc = WordCoocCounter(debug_flag=False)
+    wcc.fit_corpus(corpus_reader)
+
+    # for k,v in wcc.get_dictionary().iteritems():
+    #     print k, v[0], v[1]
+    # print wcc.tocoo()
     
-    raw_input("pause")
-    return
+    # raw_input("pause")
+    # return
 
-    wcc.filter_words(min_freq=20)
+    wcc.save("./wcc")
 
-    coo_mtx = wcc.gen_word_coo_mtx()
+    coo_mtx = wcc.tocoo()
     # print coo_mtx
     with open("./word_coo_mtx.pkl", "wb") as F:
         pickle.dump(coo_mtx, F, -1)
 
-
-def test_word_dict_memory_usage(filepath):
-    wordslist = []
-
-    word_counter = {}
-
-    with open(filepath, "r") as F:
-        for line in F.xreadlines():
-            words = line.split()
-            # wordslist.append(words)
-
-            for w in words:
-                try:
-                    word_counter[w] += 1
-                except KeyError:
-                    word_counter[w] = 1
-
-                # word_counter[w] += 1
-
-    print len(word_counter)
-    raw_input("pause")
 
 
 def test_dod_memory_usage():
@@ -208,8 +188,8 @@ def test_dod_memory_usage():
 
 if __name__ == '__main__':
     # docs2wordslist("/home/aaronyin/TheCoverProject/Wikipedia_Corpus/wiki_cn_lines")
-    # wordslist2coomat("/home/aaronyin/TheCoverProject/Wikipedia_Corpus/wiki_cn_sent_words")
+    wordslist2coomat("/home/aaronyin/TheCoverProject/Wikipedia_Corpus/test_doc_words")
 
     # test_memory_usage("/home/aaronyin/TheCoverProject/Wikipedia_Corpus/wiki_cn_sent_words")
-    test_dod_memory_usage()
+    # test_dod_memory_usage()
 
