@@ -31,8 +31,8 @@ def fit_vectors(double[:, ::1] wordvec,
                 double alpha,
                 double max_loss,
                 int no_threads, 
-                int iter_counter=2, 
-                int k_loss=1):
+                int iter_counter=1, 
+                int k_loss=2):
     """
     Estimate GloVe word embeddings given the cooccurrence matrix.
     Modifies the word vector and word bias array in-place.
@@ -97,8 +97,8 @@ def fit_vectors(double[:, ::1] wordvec,
                 # loss = entry_weight * (prediction - c_log(count)) 
                 # no log version
                 # entry_weight = double_min(1.0, (count / max_count)) 
-                # entry_weight = count / max_count
-                entry_weight = 1 # the matrix should be filtered, so all words are important
+                entry_weight = count / max_count
+                # entry_weight = 1 # the matrix should be filtered, so all words are important
                 loss = entry_weight * (prediction - count) * k_loss
 
                 # Clip the loss for numerical stability.

@@ -84,7 +84,7 @@ class Glove(object):
         self.n_epochs = n_epochs
         self.verbose = verbose
 
-    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=False, shrink_symm=False, iter_counter=2, k_loss=1, gpu_mode=False):
+    def fit(self, matrix, epochs=5, no_threads=2, verbose=False, log_flag=True, shrink_symm=False, iter_counter=2, k_loss=1, gpu_mode=False):
         """
         Estimate the word embeddings.
 
