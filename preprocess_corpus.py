@@ -98,11 +98,12 @@ def wordslist2coomat(filepath):
     # raw_input("pause")
     # return
 
-    wcc.save("./wcc")
+    with open("./__X_data/wcc_dict", "w") as F:
+        F.write(wcc._wcc_dict.asid2words().tostring())
 
     coo_mtx = wcc.tocoo()
     # print coo_mtx
-    with open("./word_coo_mtx.pkl", "wb") as F:
+    with open("./__X_data/word_coo_mtx.pkl", "wb") as F:
         pickle.dump(coo_mtx, F, -1)
 
 

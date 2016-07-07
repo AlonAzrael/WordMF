@@ -454,11 +454,37 @@ cdef class WordCoocDict:
         except KeyError:
             self._dict[word] = val
 
+    def asid2words(self):
+        # transform self
+        cdef dict new_dict = {}
+        cdef str word
+        cdef list word_item 
+
+        for word, word_item in self._dict.iteritems():
+            new_dict[word_item[0]] = [word, word_item[1]]
+
+        self._dict = new_dict
+
+        return self
+
+    def asword2ids(self):
+        cdef dict new_dict = {}
+        cdef int word_id
+        cdef list word_item 
+
+        for word_id, word_item in self._dict.iteritems():
+            new_dict[word_item[0]] = [word_id, word_item[1]]
+
+        self._dict = new_dict
+
+        return self
+
     def tostring(self):
         return pprint.pformat(self._dict)
 
     def fromstring(self, str dict_s):
         self._dict = eval(dict_s)
+
 
 
 
@@ -481,8 +507,8 @@ cdef class CorpusReader:
 
 cdef class WordCoocCounter:
 
-    cdef WordCoocDict _wcc_dict
-    cdef AoaMatrix _aoa_mtx
+    cdef public WordCoocDict _wcc_dict
+    cdef public AoaMatrix _aoa_mtx
 
     def __cinit__(self):
         self._wcc_dict = WordCoocDict()
@@ -606,7 +632,6 @@ cdef class WordCoocCounter:
         self._aoa_mtx.fromstring(aoa_mtx_s)
 
         return self
-
 
 
 

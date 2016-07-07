@@ -10,3 +10,6 @@ dir_random_coo_mtx/
 
 **/*.pyc
 
+**/node_modules/
+**/node_modules/*
+
