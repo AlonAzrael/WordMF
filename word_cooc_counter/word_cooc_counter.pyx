@@ -491,17 +491,23 @@ cdef class WordCoocDict:
 cdef class CorpusReader:
 
     cdef public str filepath
+    cdef public list extended_sents
 
     def __init__(self, filepath):
         self.filepath = filepath
+        self.extended_sents = []
 
     def __iter__(self):
         cdef str line
+        for line in self.extended_sents:
+            yield line
+
         with open(self.filepath, "r") as F:
             for line in F:
                 yield line
 
-
+    def append_sents(self, sents):
+        self.extended_sents.extend(sents)
 
 
 

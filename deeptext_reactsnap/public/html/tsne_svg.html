@@ -5,27 +5,168 @@
     <head>
         <meta charset="utf-8">
         <script src="js/snap.svg-min.js"></script>
+        <script src="js/jquery.min.js"></script>
         <style type="text/css">
 
-        #main_container {
+        html {
             width: 100%;
             height: 100%;
-            background: url("img/background-grey.jpg");
+            background: url("img/grey.jpg") no-repeat center center fixed;
+            background-position: center;
+            background-size: cover;
+            -webkit-background-size: cover;
+            -moz-background-size: cover;
         }
 
+        html, body { margin:0; padding:0; overflow:hidden }
 
+        #main_container { position:fixed; top:0; left:0; height:100%; width:100% }
+
+        /*#main_container {
+            width: 100px;
+        }*/
 
         </style>
+        
     </head>
 
     <body>
 
-        <div id="main_container">
+        <svg id="main_container">
 
-        </div>
+        </svg>
 
         <script type="text/javascript">
+
+        function print (argument) {
+            console.log.apply(console, arguments)
+        }
+
+        function create_main_container (selector_path) {
+            var main_container = Snap(selector_path)
+            var main_container_jq = $(selector_path)
+
+            main_container.width = main_container_jq.width()
+            main_container.height = main_container_jq.height()
+
+            return main_container
+        }
+
+         // create main_container
+        var main_container_selector_path = "#main_container"
+        var main_container = create_main_container(main_container_selector_path)
+
+        function get_win_size () {
+            return {width:main_container.width, height:main_container.height}
+        }
+
+        function SVGCoor_C (argument) {
             
+            var svg_coor_obj = {
+                init: function () {
+                    
+                },
+            }
+
+            return svg_coor_obj
+        }
+        var svg_coor = SVGCoor_C()
+
+        function recv_tsne_coor_data (callback) {
+
+            $.ajax({
+                dataType: "text",
+                contentType: "application/json; charset=UTF-8",
+                method: "POST",
+                url: "/get_tsne_coor_data",
+            })
+            .success(function (data) {
+                callback(data)
+            })
+            .error(function (argument) {
+                print("recv_tsne_coor_data error")
+            })
+
+        }
+
+        function parse_tsne_coor_data (tsne_coor_data) {
+            var word_coor_list = tsne_coor_data.split("\n")
+            // print(word_coor_list)
+            
+            for (var i = 0; i < word_coor_list.length; i++) {
+                var item_list = word_coor_list[i].split(" ")
+                var x_y = item_list[item_list.length-1].split(",")
+                var x = parseFloat(x_y[0])
+                var y = parseFloat(x_y[1])
+                var word = item_list[0]
+                var word_freq = parseInt(item_list[1])
+
+                word_coor_list[i] = [word, word_freq, x, y]
+            };
+
+            return word_coor_list
+        }
+
+        function draw_word_by_tsne_coor (tsne_coor_data) {
+            // print("tsne_coor_data:", tsne_coor_data)
+            // print()
+
+            var word_coor_list = parse_tsne_coor_data(tsne_coor_data)
+
+            // get bbox
+            var min_left = 0, min_top = 0, max_right = 0, max_bottom = 0
+            for (var i = 0; i < word_coor_list.length; i++) {
+                var item = word_coor_list[i]
+                
+                var x = item[2]
+                if (x < min_left)
+                    min_left = x
+                else if (x > max_right) 
+                    max_right = x
+                
+                var y = item[3]
+                if (y < min_top) 
+                    min_top = y
+                else if (y > max_right)
+                    max_bottom = y
+
+            };
+            print(min_left, min_top, max_right, max_bottom)
+            var middle_pos = [(min_left + max_right)*0.5, (min_top + max_bottom)*0.5]
+            var tsne_width = max_right - min_left, tsne_height = max_bottom - min_top
+
+            var win_size = get_win_size()
+            var border_size = {width:400, height:400}
+            var win_width = win_size.width - border_size.width, win_height = win_size.height - border_size.height
+
+            var word_pos_list = []
+            for (var i = 0; i < word_coor_list.length; i++) {
+                var item = word_coor_list[i]
+                
+                var x_perc = 1.0*(item[2] - min_left)/tsne_width, y_perc = 1.0*(item[3] - min_top)/tsne_height
+                var nx = win_width * x_perc + border_size.width*0.5, ny = win_height * y_perc + border_size.height*0.5
+                word_pos_list[i] = [nx, ny]
+                
+            };
+
+            var n_top_word = word_pos_list.length > 100 ? 100 : word_pos_list.length
+            for (var i = 0; i < n_top_word; i++) {
+                var pos = word_pos_list[i]
+
+                main_container.text(pos[0], pos[1], word_coor_list[i][0])
+            };
+
+            // reset coordinates 
+            var win_size = get_win_size()
+            var win_middle_pos = [win_size.width*0.5, win_size.height*0.5]
+
+            var pos_offset = [win_middle_pos[0] - middle_pos[0], win_middle_pos[1] - middle_pos[1]]
+
+        }
+        
+        // main 
+        recv_tsne_coor_data(draw_word_by_tsne_coor)
+
         </script>
 
     </body>

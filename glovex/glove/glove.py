@@ -124,6 +124,7 @@ class Glove(object):
         # process matrix
         if log_flag:
             matrix = matrix.log1p()
+            max_count = np.log(self.max_count)
 
         if shrink_symm:
             # row_dict = defaultdict(lambda :defaultdict(int))
@@ -186,7 +187,7 @@ class Glove(object):
                 matrix.data,
                 shuffle_indices,
                 self.learning_rate,
-                self.max_count,
+                max_count,
                 self.alpha,
                 self.max_loss,
                 int(no_threads), 

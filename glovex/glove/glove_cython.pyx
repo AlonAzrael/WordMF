@@ -55,7 +55,7 @@ def fit_vectors(double[:, ::1] wordvec,
 
     # Loss and gradient variables.
     cdef double prediction, entry_weight, loss
-    max_count = c_log(max_count)
+    # max_count = c_log(max_count)
     # max_count = c_log(100)
 
     # Iteration variables
@@ -97,7 +97,13 @@ def fit_vectors(double[:, ::1] wordvec,
                 # loss = entry_weight * (prediction - c_log(count)) 
                 # no log version
                 # entry_weight = double_min(1.0, (count / max_count)) 
+
                 entry_weight = count / max_count
+                if entry_weight > 2:
+                    entry_weight = 2
+                elif entry_weight < 0.01:
+                    continue
+
                 # entry_weight = 1 # the matrix should be filtered, so all words are important
                 loss = entry_weight * (prediction - count) * k_loss
 
