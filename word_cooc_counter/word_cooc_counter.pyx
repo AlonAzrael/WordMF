@@ -350,7 +350,7 @@ cdef class AoaMatrix:
                 if col_i > max_word_id:
                     max_word_id = col_i
 
-        # print "max_word_id:", max_word_id
+        # print ("max_word_id:", max_word_id)
         coo_mtx = matrix_to_coo(self.sprm_p, max_word_id+1)
         
         return coo_mtx
@@ -376,7 +376,7 @@ cdef class AoaMatrix:
             self.data.push_back(vector[DATA_T]())
 
         # init cols
-        for row_i, col_list in dok.iteritems():
+        for row_i, col_list in list(dok.items()):
             row_indices = &(deref(self.indices)[row_i])
             row_data = &(deref(self.data)[row_i])
 
@@ -428,7 +428,7 @@ cdef class WordCoocDict:
         cdef list word_item
         cdef int word_id = 0, word_freq = 0, new_word_id = 0
 
-        for word, word_item in self._dict.items():
+        for word, word_item in list(self._dict.items()):
             word_id, word_freq = word_item
             if word_freq < thres: # thres is inside boundary
                 del self._dict[word]
@@ -460,7 +460,7 @@ cdef class WordCoocDict:
         cdef str word
         cdef list word_item 
 
-        for word, word_item in self._dict.iteritems():
+        for word, word_item in self._dict.items():
             new_dict[word_item[0]] = [word, word_item[1]]
 
         self._dict = new_dict
@@ -472,7 +472,7 @@ cdef class WordCoocDict:
         cdef int word_id
         cdef list word_item 
 
-        for word_id, word_item in self._dict.iteritems():
+        for word_id, word_item in self._dict.items():
             new_dict[word_item[0]] = [word_id, word_item[1]]
 
         self._dict = new_dict
@@ -630,9 +630,9 @@ cdef class WordCoocCounter:
         wcc_dict_s = "".join(wcc_dict_s_list)
         aoa_mtx_s = "".join(aoa_mtx_s_list)
 
-        # print wcc_dict_s
-        # print "====="
-        # print aoa_mtx_s
+        # print (wcc_dict_s)
+        # print ("=====")
+        # print (aoa_mtx_s)
 
         self._wcc_dict.fromstring(wcc_dict_s)
         self._aoa_mtx.fromstring(aoa_mtx_s)
